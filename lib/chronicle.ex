@@ -4,6 +4,26 @@ defmodule Chronicler.Chronicle do
 
   defstruct initialized?: false, quests: %{}
 
+  def loop(%Chronicle{} = chronicle) do
+    Process.flag(:trap_exit, true)
+
+    chronicle = init(chronicle)
+
+    receive do
+      :embark ->
+        embark(chronicle)
+
+      {:EXIT, pid, :normal} ->
+        remove_quest(chronicle, pid)
+
+      {:EXIT, pid, :ill_fated} ->
+        restart_quest(chronicle, pid)
+
+      :inspect ->
+        chronicle |> dbg() |> loop()
+    end
+  end
+
   defp init(%{initialized?: true} = chronicle) do
     chronicle
   end
@@ -11,23 +31,11 @@ defmodule Chronicler.Chronicle do
   defp init(chronicle) do
     quests =
       Map.new(chronicle.quests, fn quest ->
-        pid = spawn(fn -> Quest.loop(quest) end)
+        pid = spawn_link(fn -> Quest.loop(quest) end)
         {pid, quest}
       end)
 
     %{chronicle | quests: quests, initialized?: true}
-  end
-
-  def loop(%Chronicle{} = chronicle) do
-    chronicle = init(chronicle)
-
-    receive do
-      :embark ->
-        embark(chronicle)
-
-      :inspect ->
-        chronicle |> dbg() |> loop()
-    end
   end
 
   defp embark(chronicle) do
@@ -36,5 +44,27 @@ defmodule Chronicler.Chronicle do
     end
 
     loop(chronicle)
+  end
+
+  defp remove_quest(chronicle, pid) do
+    quests = Map.delete(chronicle.quests, pid)
+
+    unless quests == %{} do
+      loop(%{chronicle | quests: quests})
+    end
+  end
+
+  defp restart_quest(chronicle, pid) do
+    quest = chronicle.quests[pid]
+    new_pid = spawn_link(fn -> Quest.loop(quest) end)
+
+    quests =
+      chronicle.quests
+      |> Map.delete(pid)
+      |> Map.put(new_pid, quest)
+
+    send(new_pid, :embark)
+
+    loop(%{chronicle | quests: quests})
   end
 end

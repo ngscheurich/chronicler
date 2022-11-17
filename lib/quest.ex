@@ -20,21 +20,6 @@ defmodule Chronicler.Quest do
     end
   end
 
-  defp message(%{title: title}, :embark) do
-    msg = "📯 Quest underway: “#{title}”"
-    Messenger.out(msg)
-  end
-
-  defp message(%{title: title}, :success) do
-    msg = "🎉 Quest complete: “#{title}”"
-    Messenger.out(msg)
-  end
-
-  defp message(%{title: title}, :failure) do
-    msg = "💀 Quest failed: “#{title}”"
-    Messenger.out(msg)
-  end
-
   defp tick(%{duration: duration} = quest) do
     tempt_fate(quest)
 
@@ -56,5 +41,20 @@ defmodule Chronicler.Quest do
       message(quest, :failure)
       Process.exit(self(), :ill_fated)
     end
+  end
+
+  defp message(%{title: title}, :embark) do
+    msg = "📯 Quest underway: “#{title}”"
+    Messenger.out(msg)
+  end
+
+  defp message(%{title: title}, :success) do
+    msg = "🎉 Quest complete: “#{title}”"
+    Messenger.out(msg)
+  end
+
+  defp message(%{title: title}, :failure) do
+    msg = "💀 Quest failed: “#{title}”"
+    Messenger.out(msg)
   end
 end
